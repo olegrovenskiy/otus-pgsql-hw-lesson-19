@@ -105,5 +105,72 @@
         demo=#
 
 
+Секционировать будем таблицу ticket_flights
+        demo=# \dt
+                       List of relations
+          Schema  |      Name       | Type  |  Owner
+        ----------+-----------------+-------+----------
+         bookings | aircrafts_data  | table | postgres
+         bookings | airports_data   | table | postgres
+         bookings | boarding_passes | table | postgres
+         bookings | bookings        | table | postgres
+         bookings | flights         | table | postgres
+         bookings | seats           | table | postgres
+         bookings | ticket_flights  | table | postgres
+         bookings | tickets         | table | postgres
+        (8 rows)
+        
+        demo=# select count(*) from ticket_flights;
+          count
+        ---------
+         2360335
+        (1 row)
+        
+        demo=# select * from ticket_flights limit 10;
+           ticket_no   | flight_id | fare_conditions |  amount
+        ---------------+-----------+-----------------+-----------
+         0005432081075 |     11002 | Business        |  99800.00
+         0005433845814 |     11047 | Business        |  99800.00
+         0005432003470 |     27484 | Business        |  99800.00
+         0005433568595 |     23503 | Business        | 105900.00
+         0005432003656 |     27415 | Business        |  99800.00
+         0005433415623 |     35652 | Business        | 199800.00
+         0005432661827 |     43274 | Business        | 185300.00
+         0005432873244 |      2394 | Business        | 115000.00
+         0005432661894 |     43278 | Business        | 185300.00
+         0005433569575 |     23477 | Business        | 105900.00
+        (10 rows)
+        
+        demo=#
+
+
+
+Получаем DDL данные
+
+        bash-4.2$ pg_dump -t 'ticket_flights' --schema-only demo
+
+        CREATE TABLE bookings.ticket_flights (
+            ticket_no character(13) NOT NULL,
+            flight_id integer NOT NULL,
+            fare_conditions character varying(10) NOT NULL,
+            amount numeric(10,2) NOT NULL,
+            CONSTRAINT ticket_flights_amount_check CHECK ((amount >= (0)::numeric)),
+            CONSTRAINT ticket_flights_fare_conditions_check CHECK (((fare_conditions)::text = ANY (ARRAY[('Economy'::character varying)::text, ('Comfort'::character varying)::text, ('Business'::character varying)::text])))
+        );
+
+Создаём новую таблицу
+
+CREATE TABLE bookings.ticket_flightsNEW (
+            ticket_no character(13) NOT NULL,
+            flight_id integer NOT NULL,
+            fare_conditions character varying(10) NOT NULL,
+            amount numeric(10,2) NOT NULL,
+            CONSTRAINT ticket_flights_amount_check CHECK ((amount >= (0)::numeric)),
+            CONSTRAINT ticket_flights_fare_conditions_check CHECK (((fare_conditions)::text = ANY (ARRAY[('Economy'::character varying)::text, ('Comfort'::character varying)::text, ('Business'::character varying)::text])))
+        )
+        partition by hash(ticket_no);
+
+
+
 
 
