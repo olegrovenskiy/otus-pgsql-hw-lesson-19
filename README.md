@@ -160,15 +160,15 @@
 
 Создаём новую таблицу
 
-CREATE TABLE bookings.ticket_flightsNEW (
-            ticket_no character(13) NOT NULL,
-            flight_id integer NOT NULL,
-            fare_conditions character varying(10) NOT NULL,
-            amount numeric(10,2) NOT NULL,
-            CONSTRAINT ticket_flights_amount_check CHECK ((amount >= (0)::numeric)),
-            CONSTRAINT ticket_flights_fare_conditions_check CHECK (((fare_conditions)::text = ANY (ARRAY[('Economy'::character varying)::text, ('Comfort'::character varying)::text, ('Business'::character varying)::text])))
-        )
-        partition by hash(ticket_no);
+        CREATE TABLE bookings.ticket_flightsNEW (
+                    ticket_no character(13) NOT NULL,
+                    flight_id integer NOT NULL,
+                    fare_conditions character varying(10) NOT NULL,
+                    amount numeric(10,2) NOT NULL,
+                    CONSTRAINT ticket_flights_amount_check CHECK ((amount >= (0)::numeric)),
+                    CONSTRAINT ticket_flights_fare_conditions_check CHECK (((fare_conditions)::text = ANY (ARRAY[('Economy'::character varying)::text, ('Comfort'::character varying)::text, ('Business'::character varying)::text])))
+                )
+                partition by hash(ticket_no);
 
 
 
