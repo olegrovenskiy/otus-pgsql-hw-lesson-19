@@ -2,7 +2,7 @@
 
 ###  Секционировать большую таблицу из демо базы flights
 
-Загрузка файла базы и создание базы данных
+##### 1. Загрузка файла базы и создание базы данных
 
     bash-4.2$ cd ./flights/
     bash-4.2$
@@ -68,7 +68,7 @@
     
     postgres=#
 
-Подключаемся
+##### 2. Подключаемся
 
     postgres=#
     postgres=# \c demo
@@ -89,7 +89,7 @@
     
     demo=#
 
-Проверка что с таблицами ОК
+##### 3. Проверка что с таблицами ОК
 
         demo=# ^C
         demo=# select * from aircrafts_data limit 5;
@@ -105,7 +105,8 @@
         demo=#
 
 
-Секционировать будем таблицу ticket_flights
+##### 4. Секционировать будем таблицу ticket_flights
+
         demo=# \dt
                        List of relations
           Schema  |      Name       | Type  |  Owner
@@ -145,7 +146,7 @@
 
 
 
-Получаем DDL данные
+##### 5. Получаем DDL данные
 
         bash-4.2$ pg_dump -t 'ticket_flights' --schema-only demo
 
@@ -158,7 +159,7 @@
             CONSTRAINT ticket_flights_fare_conditions_check CHECK (((fare_conditions)::text = ANY (ARRAY[('Economy'::character varying)::text, ('Comfort'::character varying)::text, ('Business'::character varying)::text])))
         );
 
-Создаём новую таблицу
+##### 6. Создаём новую таблицу
 
         CREATE TABLE bookings.ticket_flightsNEW (
                     ticket_no character(13) NOT NULL,
@@ -171,6 +172,166 @@
                 partition by hash(ticket_no);
 
 
+demo=# \dt
+               List of relations
+  Schema  |      Name       | Type  |  Owner
+----------+-----------------+-------+----------
+ bookings | aircrafts_data  | table | postgres
+ bookings | airports_data   | table | postgres
+ bookings | boarding_passes | table | postgres
+ bookings | bookings        | table | postgres
+ bookings | flights         | table | postgres
+ bookings | seats           | table | postgres
+ bookings | ticket_flights  | table | postgres
+ bookings | tickets         | table | postgres
+(8 rows)
+
+demo=#         CREATE TABLE bookings.ticket_flightsNEW (
+demo(#                     ticket_no character(13) NOT NULL,
+demo(#                     flight_id integer NOT NULL,
+demo(#                     fare_conditions character varying(10) NOT NULL,
+demo(#                     amount numeric(10,2) NOT NULL,
+demo(#                     CONSTRAINT ticket_flights_amount_check CHECK ((amount >= (0)::numeric)),
+demo(#                     CONSTRAINT ticket_flights_fare_conditions_check CHECK (((fare_conditions)::text = ANY (ARRAY[('Economy'::character varying)::text, ('Comfort'::character varying)::text, ('Business'::character varying)::text])))
+demo(#                 )
+demo-#                 partition by hash(ticket_no);
+CREATE TABLE
+demo=#
+demo=#
+demo=# \dt
+                      List of relations
+  Schema  |       Name        |       Type        |  Owner
+----------+-------------------+-------------------+----------
+ bookings | aircrafts_data    | table             | postgres
+ bookings | airports_data     | table             | postgres
+ bookings | boarding_passes   | table             | postgres
+ bookings | bookings          | table             | postgres
+ bookings | flights           | table             | postgres
+ bookings | seats             | table             | postgres
+ bookings | ticket_flights    | table             | postgres
+ bookings | ticket_flightsnew | partitioned table | postgres
+ bookings | tickets           | table             | postgres
+(9 rows)
+
+demo=# ^C
+demo=#
+demo=#
+demo=# select * from ticket_flightsnew;
+ ticket_no | flight_id | fare_conditions | amount
+-----------+-----------+-----------------+--------
+(0 rows)
+
+demo=#
+
+##### 7. Создаём секции
+
+        create table ticket_flights_1 partition of ticket_flightsnew for values with (modulus 5, remainder 0);
+        create table ticket_flights_2 partition of ticket_flightsnew for values with (modulus 5, remainder 1);
+        create table ticket_flights_3 partition of ticket_flightsnew for values with (modulus 5, remainder 2);
+        create table ticket_flights_4 partition of ticket_flightsnew for values with (modulus 5, remainder 3);
+        create table ticket_flights_5 partition of ticket_flightsnew for values with (modulus 5, remainder 4);
+
+        demo=#
+        demo=# create table ticket_flights_1 partition of ticket_flightsnew for values with (modulus 5, remainder 0);
+        CREATE TABLE
+        demo=# create table ticket_flights_2 partition of ticket_flightsnew for values with (modulus 5, remainder 1);
+        CREATE TABLE
+        demo=# create table ticket_flights_3 partition of ticket_flightsnew for values with (modulus 5, remainder 2);
+        CREATE TABLE
+        demo=# create table ticket_flights_4 partition of ticket_flightsnew for values with (modulus 5, remainder 3);
+        CREATE TABLE
+        demo=# create table ticket_flights_5 partition of ticket_flightsnew for values with (modulus 5, remainder 4);
+        CREATE TABLE
+        demo=#
+
+##### 8. Переносим данные в новую таблицу
 
 
+        INSERT INTO bookings.ticket_flightsnew SELECT * FROM bookings.ticket_flights;
+        
+        demo=# INSERT INTO bookings.ticket_flightsnew SELECT * FROM bookings.ticket_flights;
+        INSERT 0 2360335
+        demo=#
 
+
+##### 9. Проверяем
+
+        demo=# select count(*) from ticket_flights;
+          count
+        ---------
+         2360335
+        (1 row)
+        
+        demo=# select count(*) from ticket_flightsnew;
+          count
+        ---------
+         2360335
+        (1 row)
+        
+        demo=# select count(*) from ticket_flights_1;
+         count
+        --------
+         471422
+        (1 row)
+        
+        demo=# select count(*) from ticket_flights_2;
+         count
+        --------
+         469468
+        (1 row)
+        
+        demo=# select count(*) from ticket_flights_3;
+         count
+        --------
+         473376
+        (1 row)
+        
+        demo=# select count(*) from ticket_flights_4;
+         count
+        --------
+         472641
+        (1 row)
+        
+        demo=# select count(*) from ticket_flights_5;
+         count
+        --------
+         473428
+        (1 row)
+        
+        demo=#
+
+##### 10. Проверяем с помощью explain
+
+
+        demo=#
+        demo=# explain select * from ticket_flightsnew where flight_id='2394';
+                                                         QUERY PLAN
+        -------------------------------------------------------------------------------------------------------------
+         Gather  (cost=1000.00..32974.09 rows=85 width=32)
+           Workers Planned: 2
+           ->  Parallel Append  (cost=0.00..31965.59 rows=35 width=32)
+                 ->  Parallel Seq Scan on ticket_flights_5 ticket_flightsnew_5  (cost=0.00..6411.77 rows=7 width=32)
+                       Filter: (flight_id = 2394)
+                 ->  Parallel Seq Scan on ticket_flights_3 ticket_flightsnew_3  (cost=0.00..6410.50 rows=7 width=32)
+                       Filter: (flight_id = 2394)
+                 ->  Parallel Seq Scan on ticket_flights_4 ticket_flightsnew_4  (cost=0.00..6400.67 rows=7 width=32)
+                       Filter: (flight_id = 2394)
+                 ->  Parallel Seq Scan on ticket_flights_1 ticket_flightsnew_1  (cost=0.00..6384.32 rows=7 width=32)
+                       Filter: (flight_id = 2394)
+                 ->  Parallel Seq Scan on ticket_flights_2 ticket_flightsnew_2  (cost=0.00..6358.15 rows=7 width=32)
+                       Filter: (flight_id = 2394)
+        (13 rows)
+        
+        demo=# explain select * from ticket_flights where flight_id='2394';
+                                            QUERY PLAN
+        -----------------------------------------------------------------------------------
+         Gather  (cost=1000.00..32971.71 rows=83 width=32)
+           Workers Planned: 2
+           ->  Parallel Seq Scan on ticket_flights  (cost=0.00..31963.41 rows=35 width=32)
+                 Filter: (flight_id = 2394)
+        (4 rows)
+        
+        demo=#
+
+
+видим что секционирование отрабатывает
