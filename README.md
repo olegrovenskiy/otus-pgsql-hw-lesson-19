@@ -335,3 +335,46 @@ demo=#
 
 
 видим что секционирование отрабатывает
+
+#####    Замечание
+
+
+        demo=# select * from ticket_flightsnew limit 10;
+           ticket_no   | flight_id | fare_conditions |  amount
+        ---------------+-----------+-----------------+-----------
+         0005432003656 |     27415 | Business        |  99800.00
+         0005434871667 |     29008 | Business        |  49700.00
+         0005434872533 |     29029 | Business        |  49700.00
+         0005434878861 |     19973 | Business        |  49700.00
+         0005435858471 |     54745 | Business        |  90500.00
+         0005434879322 |     29031 | Business        |  49700.00
+         0005432873335 |     34719 | Business        | 115000.00
+         0005434879802 |     29032 | Business        |  49700.00
+         0005434877454 |     29007 | Business        |  49700.00
+         0005434874558 |     29052 | Business        |  49700.00
+        (10 rows)
+        
+        demo=#
+        demo=#
+        demo=# explain select * from ticket_flights where  ticket_no='0005435858471';
+                                                 QUERY PLAN
+        --------------------------------------------------------------------------------------------
+         Index Scan using ticket_flights_pkey on ticket_flights  (cost=0.43..16.45 rows=3 width=32)
+           Index Cond: (ticket_no = '0005435858471'::bpchar)
+        (2 rows)
+        
+        demo=#
+        demo=# explain select * from ticket_flightsnew where  ticket_no='0005435858471';
+                                                     QUERY PLAN
+        -----------------------------------------------------------------------------------------------------
+         Gather  (cost=1000.00..7384.62 rows=3 width=32)
+           Workers Planned: 2
+           ->  Parallel Seq Scan on ticket_flights_1 ticket_flightsnew  (cost=0.00..6384.32 rows=1 width=32)
+                 Filter: (ticket_no = '0005435858471'::bpchar)
+        (4 rows)
+        
+        demo=#
+
+
+Проверил поиск по полю которое использовалось в секционировании, видно что поиск прошёл в ticket_flights_1. Cost также отображает 
+что использование секционированной таблицы эффективнее.
